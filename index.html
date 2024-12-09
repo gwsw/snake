@@ -16,9 +16,9 @@
 var _game = null;
 
 var config = {
-    upint                  : 8000, // update interval; ms
-    wcells                 : 100,
-    hcells                 : 70,
+    upint                  : 1000, // update interval; ms
+    wcells                 : 36,
+    hcells                 : 20,
     seg_xmargin            : 2,
     seg_ymargin            : 2,
     win_xmargin            : 16,
@@ -33,7 +33,7 @@ var config = {
 class CellItem {
     constructor(x, y, color) {
         this.x = x;
-        this.y = x;
+        this.y = y;
         this.color = color;
     }
     draw(gfx, cellw, cellh) {
@@ -81,13 +81,15 @@ class Game {
         this.draw();
     }
     update() {
-        const tm = now();
-        if (this.last_update + this.upint > tm) return;
+        if (this.last_update + this.upint > now()) return;
+        this.update_now();
+    }
+    update_now() {
         const x = this.snake[0].x + this.xdelta;
         const y = this.snake[0].y + this.ydelta;
         this.snake.push(new Seg(x, y));
         this.snake.shift();
-        this.last_update = tm;
+        this.last_update = now();
     }
     dims() {
         const d = this.gfx.canvas_dims();
@@ -122,20 +124,25 @@ class Game {
     static _event_mousemove(e) {
         if (_game != null) _game.event_mouse(Game.MOUSE_MOVE, e.offsetX, e.offsetY);
     }
+    set_direction(xdelta, ydelta) {
+        this.xdelta = xdelta;
+        this.ydelta = ydelta;
+        this.update_now();
+    }
     event_keystroke(key, down) {
         if (!down) return;
         switch (key) {
         case 'ArrowDown':
-            this.circ_y += config.circ_move;
+            this.set_direction(0, +1);
             break;
         case 'ArrowUp':
-            this.circ_y -= config.circ_move;
+            this.set_direction(0, -1);
             break;
         case 'ArrowRight':
-            this.circ_x += config.circ_move;
+            this.set_direction(+1, 0);
             break;
         case 'ArrowLeft':
-            this.circ_x -= config.circ_move;
+            this.set_direction(-1, 0);
             break;
         case 'G':
             break;
@@ -143,8 +150,6 @@ class Game {
     }
     event_mouse(event, x, y) {
         if (event == Game.MOUSE_DOWN) {
-            this.circ_x = x;
-            this.circ_y = y;
         }
     }
     static MOUSE_DOWN = 0;
