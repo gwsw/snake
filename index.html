@@ -2,7 +2,7 @@
 <meta charset="UTF-8">
 <html>
 <head>
-<title>Example Javascript Graphics App</title>
+<title>Snake</title>
 </head>
 <body onload="main()">
 <canvas id="canvas" width="1" height="1" style="font-family:Arial"></canvas>
@@ -16,32 +16,96 @@
 var _game = null;
 
 var config = {
-    circ_move              : 2,
-    circ_radius            : 40,
+    upint                  : 8000, // update interval; ms
+    wcells                 : 100,
+    hcells                 : 70,
+    seg_xmargin            : 2,
+    seg_ymargin            : 2,
+    win_xmargin            : 16,
+    win_ymargin            : 16,
 
-    color_bg               : "006000",
-    color_circ             : "80e0FF",
+    color_bg               : "101010",
+    color_snake            : "a0a010",
+    color_food             : "0070f0",
+};
+
+// --------------------------------------------------------------------
+class CellItem {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = x;
+        this.color = color;
+    }
+    draw(gfx, cellw, cellh) {
+        const x = config.win_xmargin + cellw * this.x;
+        const y = config.win_ymargin + cellh * this.y;
+        const xm = config.seg_xmargin;
+        const ym = config.seg_ymargin;
+        gfx.draw_rect(x + xm, y + ym, cellw - 2*xm, cellh - 2*ym, this.color);
+    }
+};
+
+// --------------------------------------------------------------------
+class Seg extends CellItem {
+    constructor(x, y) {
+        super(x, y, config.color_snake);
+    }
+};
+
+// --------------------------------------------------------------------
+class Food extends CellItem {
+    constructor(x, y) {
+        super(x, y, config.color_food);
+    }
 };
 
 // --------------------------------------------------------------------
 class Game {
     constructor(gfx) {
         this.gfx = gfx;
-        const canvas = gfx.ctx.canvas;
-        const cw = canvas.width;
-        const ch = canvas.height;
-        this.circ_x = cw/2;
-        this.circ_y = ch/2;
+        this.xdelta = +1;
+        this.ydelta = 0;
+        this.upint = config.upint;
+        this.last_update = 0;
+        this.food = null;
         this.playing = true;
+        this.paused = false;
+        this.snake = [ new Seg(Math.floor(config.wcells/2), Math.floor(config.hcells/2)) ];
+        this.resize();
+    }
+    resize() {
     }
     run() {
         if (!this.playing) return;
-        //const time = now();
+        if (!this.paused) this.update();
         this.draw();
     }
+    update() {
+        const tm = now();
+        if (this.last_update + this.upint > tm) return;
+        const x = this.snake[0].x + this.xdelta;
+        const y = this.snake[0].y + this.ydelta;
+        this.snake.push(new Seg(x, y));
+        this.snake.shift();
+        this.last_update = tm;
+    }
+    dims() {
+        const d = this.gfx.canvas_dims();
+        let cellw = Math.floor(d.w / config.wcells);
+        let cellh = Math.floor(d.h / config.hcells);
+        if (cellw < 2) cellw = 2;
+        if (cellh < 2) cellh = 2;
+        return { cellw:cellw, cellh:cellh };
+    }
     draw() {
+        const d = this.dims();
         this.gfx.clear(config.color_bg);
-        this.gfx.draw_circle(this.circ_x, this.circ_y, config.circ_radius, config.color_circ);
+        for (const seg of this.snake) {
+            seg.draw(this.gfx, d.cellw, d.cellh);
+        }
+        if (this.food != null) {
+            this.food.draw(this.gfx, d.cellw, d.cellh);
+        }
     }
     static _event_keydown(e) {
         if (_game != null) _game.event_keystroke(e.key, true);
@@ -89,10 +153,6 @@ class Game {
 }; // class Game
 
 // --------------------------------------------------------------------
-
-function now() {
-    return performance.now();
-}
 
 function run_game() {
     if (_game != null) _game.run();
