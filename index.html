@@ -1,0 +1,130 @@
+<!doctype html>
+<meta charset="UTF-8">
+<html>
+<head>
+<title>Example Javascript Graphics App</title>
+</head>
+<body onload="main()">
+<canvas id="canvas" width="1" height="1" style="font-family:Arial"></canvas>
+
+<script src="../jlib/gfx.js"></script>
+
+<script>
+
+// --------------------------------------------------------------------
+// Globals
+var _game = null;
+
+var config = {
+    circ_move              : 2,
+    circ_radius            : 40,
+
+    color_bg               : "006000",
+    color_circ             : "80e0FF",
+};
+
+// --------------------------------------------------------------------
+class Game {
+    constructor(gfx) {
+        this.gfx = gfx;
+        const canvas = gfx.ctx.canvas;
+        const cw = canvas.width;
+        const ch = canvas.height;
+        this.circ_x = cw/2;
+        this.circ_y = ch/2;
+        this.playing = true;
+    }
+    run() {
+        if (!this.playing) return;
+        //const time = now();
+        this.draw();
+    }
+    draw() {
+        this.gfx.clear(config.color_bg);
+        this.gfx.draw_circle(this.circ_x, this.circ_y, config.circ_radius, config.color_circ);
+    }
+    static _event_keydown(e) {
+        if (_game != null) _game.event_keystroke(e.key, true);
+    }
+    static _event_keyup(e) {
+        if (_game != null) _game.event_keystroke(e.key, false);
+    }
+    static _event_mousedown(e) {
+        if (_game != null) _game.event_mouse(Game.MOUSE_DOWN, e.offsetX, e.offsetY);
+    }
+    static _event_mouseup(e) {
+        if (_game != null) _game.event_mouse(Game.MOUSE_UP, e.offsetX, e.offsetY);
+    }
+    static _event_mousemove(e) {
+        if (_game != null) _game.event_mouse(Game.MOUSE_MOVE, e.offsetX, e.offsetY);
+    }
+    event_keystroke(key, down) {
+        if (!down) return;
+        switch (key) {
+        case 'ArrowDown':
+            this.circ_y += config.circ_move;
+            break;
+        case 'ArrowUp':
+            this.circ_y -= config.circ_move;
+            break;
+        case 'ArrowRight':
+            this.circ_x += config.circ_move;
+            break;
+        case 'ArrowLeft':
+            this.circ_x -= config.circ_move;
+            break;
+        case 'G':
+            break;
+        }
+    }
+    event_mouse(event, x, y) {
+        if (event == Game.MOUSE_DOWN) {
+            this.circ_x = x;
+            this.circ_y = y;
+        }
+    }
+    static MOUSE_DOWN = 0;
+    static MOUSE_UP   = 1;
+    static MOUSE_MOVE = 2;
+}; // class Game
+
+// --------------------------------------------------------------------
+
+function now() {
+    return performance.now();
+}
+
+function run_game() {
+    if (_game != null) _game.run();
+    window.requestAnimationFrame(run_game);
+}
+
+function canvas_size(name, w, h) {
+    const canvas = el(name);
+    canvas.width = w;
+    canvas.height = h;
+    return canvas;
+}
+
+function canvas_resize() {
+    const s = 20;
+    return canvas_size("canvas", window.innerWidth - s, window.innerHeight - s);
+}
+
+function main() {
+    munge_config();
+    const canvas = canvas_resize();
+    const gfx = new Graphics(canvas.getContext("2d"), canvas.height*.028);
+    _game = new Game(gfx);
+    document.addEventListener('keyup', Game._event_keyup);
+    document.addEventListener('keydown', Game._event_keydown);
+    document.addEventListener('mousedown', Game._event_mousedown);
+    document.addEventListener('mouseup', Game._event_mouseup);
+    document.addEventListener('mousemove', Game._event_mousemove);
+    window.addEventListener('resize', canvas_resize, false);
+    run_game();
+}
+
+</script>
+</body>
+</html>
