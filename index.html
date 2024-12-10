@@ -16,6 +16,8 @@
 var _game = null;
 
 var config = {
+    font_overlay           : .12,
+    font_score             : .08,
     upint                  : 1000, // update interval; ms
     wcells                 : 36,
     hcells                 : 20,
@@ -27,7 +29,8 @@ var config = {
     color_bg               : "101010",
     color_food             : "0070f0",
     color_game_over        : "ff2020",
-    color_margin           : "c05000",
+    color_margin           : "20d040",
+    color_score            : "f0f0f0",
     color_snake            : "a0a010",
     color_snake_hilite     : "ff0010",
 };
@@ -76,6 +79,7 @@ class Game {
         this.last_update = 0;
         this.hilite_x = -1;
         this.hilite_y = -1;
+        this.score = 0;
         this.playing = true;
         this.paused = false;
         const x = Math.floor(config.wcells/2);
@@ -115,6 +119,7 @@ class Game {
             this.snake.unshift(new Seg(x, y));
             if (this.food != null && this.intersects_snake(this.food.x, this.food.y)) { // just check head
                 this.new_food();
+                this.score++;
             } else {
                 this.snake.pop();
             }
@@ -133,6 +138,12 @@ class Game {
         if (cellh < 2) cellh = 2;
         return { cellw:cellw, cellh:cellh };
     }
+    intersects_snake(x, y) {
+        for (const seg of this.snake) {
+            if (seg.x == x && seg.y == y) return true;
+        }
+        return false;
+    }
     draw() {
         const d = this.dims();
         this.gfx.clear(config.color_bg);
@@ -144,6 +155,7 @@ class Game {
             this.food.draw(this.gfx, d.cellw, d.cellh);
         }
         this.draw_margin();
+        this.draw_score();
         if (!this.playing)
             this.draw_overlay("GAME OVER");
         else if (this.paused)
@@ -163,15 +175,16 @@ class Game {
         this.gfx.draw_rect(lb,     ch-bb,   cw-lb,  bb,    config.color_margin);
         this.gfx.draw_rect(0,      tb,      lb,     ch-tb, config.color_margin);
     }
-    intersects_snake(x, y) {
-        for(const seg of this.snake) {
-            if (seg.x == x && seg.y == y) return true;
-        }
-        return false;
+    draw_score() {
+        const score = this.score.toString();
+        const d = this.gfx.canvas_dims();
+        this.gfx.set_font_size(d.h * config.font_score);
+        /// const m = this.gfx.measure_text(score);
+        this.gfx.draw_text(config.win_xmargin, config.win_ymargin, score, config.color_score);
     }
     draw_overlay(msg) {
         const d = this.gfx.canvas_dims();
-        this.gfx.set_font_size(d.h * .12);
+        this.gfx.set_font_size(d.h * config.font_overlay);
         const m = this.gfx.measure_text(msg);
         this.gfx.draw_text((d.w - m.width) / 2, (d.h - m.height) / 2, msg, config.color_game_over);
     }
