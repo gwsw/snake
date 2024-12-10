@@ -15,6 +15,12 @@
 // Globals
 var _game = null;
 
+const DIR_NULL  = 0;
+const DIR_RIGHT = 1;
+const DIR_UP    = 2;
+const DIR_LEFT  = 3;
+const DIR_DOWN  = 4;
+
 var config = {
     font_overlay           : .12,
     font_score             : .08,
@@ -27,6 +33,7 @@ var config = {
     win_ymargin            : 16,
 
     color_bg               : "101010",
+    color_face             : "000000",
     color_food             : "0070f0",
     color_game_over        : "ff2020",
     color_margin           : "20d040",
@@ -56,9 +63,20 @@ class Seg extends CellItem {
     constructor(x, y) {
         super(x, y, config.color_snake);
     }
-    draw(gfx, cellw, cellh, hilite) {
+    draw(gfx, cellw, cellh, hilite, dir) {
         const color = hilite ? config.color_snake_hilite : config.color_snake;
         super.draw(gfx, cellw, cellh, color);
+        const pts = 
+            (dir == DIR_RIGHT) ? [ new Point(.8,.5),new Point(.2,.2),new Point(.2,.8) ] :
+            (dir == DIR_UP)    ? [ new Point(.5,.2),new Point(.2,.8),new Point(.8,.8) ] :
+            (dir == DIR_LEFT)  ? [ new Point(.2,.5),new Point(.8,.2),new Point(.8,.8) ] :
+            (dir == DIR_DOWN)  ? [ new Point(.5,.8),new Point(.2,.2),new Point(.8,.2) ] :
+            null;
+        if (pts != null) {
+            const x = config.win_xmargin + cellw * this.x;
+            const y = config.win_ymargin + cellh * this.y;
+            gfx.draw_poly(pts, x, y, 0, Math.min(cellw, cellh), config.color_face, config.color_face);
+        }
     }
 };
 
@@ -144,12 +162,21 @@ class Game {
         }
         return false;
     }
+    dir() {
+        if (this.xdelta == 0) {
+            return (this.ydelta > 0) ? DIR_DOWN : DIR_UP;
+        } else {
+            return (this.xdelta > 0) ? DIR_RIGHT : DIR_LEFT;
+        }
+    }
     draw() {
         const d = this.dims();
         this.gfx.clear(config.color_bg);
+        let head = true;
         for (const seg of this.snake) {
             const hilite = (seg.x == this.hilite_x && seg.y == this.hilite_y);
-            seg.draw(this.gfx, d.cellw, d.cellh, hilite);
+            seg.draw(this.gfx, d.cellw, d.cellh, hilite, head && this.dir());
+            head = false;
         }
         if (this.food != null) {
             this.food.draw(this.gfx, d.cellw, d.cellh);
@@ -168,8 +195,8 @@ class Game {
         const d = this.dims();
         const lb = config.win_xmargin;
         const tb = config.win_ymargin;
-        const rb = cw - d.cellw * config.wcells;
-        const bb = ch - d.cellh * config.hcells;
+        const rb = cw - lb - d.cellw * config.wcells;
+        const bb = ch - tb - d.cellh * config.hcells;
         this.gfx.draw_rect(0,      0,       cw-rb,  tb,    config.color_margin);
         this.gfx.draw_rect(cw-rb,  0,       rb,     ch-bb, config.color_margin);
         this.gfx.draw_rect(lb,     ch-bb,   cw-lb,  bb,    config.color_margin);
