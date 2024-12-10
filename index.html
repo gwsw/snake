@@ -25,6 +25,7 @@ var config = {
     font_overlay           : .12,
     font_score             : .08,
     upint                  : 1000, // update interval; ms
+    upint_mult             : .9,
     wcells                 : 36,
     hcells                 : 20,
     seg_xmargin            : 1,
@@ -85,6 +86,9 @@ class Food extends CellItem {
     constructor(x, y) {
         super(x, y, config.color_food);
     }
+    draw(gfx, cellw, cellh) {
+        super.draw(gfx, cellw, cellh);
+    }
 };
 
 // --------------------------------------------------------------------
@@ -138,6 +142,7 @@ class Game {
             if (this.food != null && this.intersects_snake(this.food.x, this.food.y)) { // just check head
                 this.new_food();
                 this.score++;
+                this.upint *= config.upint_mult;
             } else {
                 this.snake.pop();
             }
