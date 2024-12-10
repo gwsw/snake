@@ -229,15 +229,6 @@ class Game {
     static _event_keyup(e) {
         if (_game != null) _game.event_keystroke(e.key, false);
     }
-    static _event_mousedown(e) {
-        if (_game != null) _game.event_mouse(Game.MOUSE_DOWN, e.offsetX, e.offsetY);
-    }
-    static _event_mouseup(e) {
-        if (_game != null) _game.event_mouse(Game.MOUSE_UP, e.offsetX, e.offsetY);
-    }
-    static _event_mousemove(e) {
-        if (_game != null) _game.event_mouse(Game.MOUSE_MOVE, e.offsetX, e.offsetY);
-    }
     set_direction(dir) {
         const delta = Game.get_delta(dir);
         this.xdelta = delta.x;
@@ -278,13 +269,6 @@ class Game {
             this.set_direction(dir);
         }
     }
-    event_mouse(event, x, y) {
-        if (event == Game.MOUSE_DOWN) {
-        }
-    }
-    static MOUSE_DOWN = 0;
-    static MOUSE_UP   = 1;
-    static MOUSE_MOVE = 2;
 }; // class Game
 
 // --------------------------------------------------------------------
@@ -314,9 +298,6 @@ function main() {
     _game = new Game(gfx);
     document.addEventListener('keyup', Game._event_keyup);
     document.addEventListener('keydown', Game._event_keydown);
-    document.addEventListener('mousedown', Game._event_mousedown);
-    document.addEventListener('mouseup', Game._event_mouseup);
-    document.addEventListener('mousemove', Game._event_mousemove);
     window.addEventListener('resize', canvas_resize, false);
     run_game();
 }
