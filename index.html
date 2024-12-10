@@ -45,18 +45,24 @@ var config = {
 
 // --------------------------------------------------------------------
 class CellItem {
-    #color;
+    #cx; #cy; #color;
     constructor(cx, cy, color) {
-        this.cx = cx;
-        this.cy = cy;
+        this.#cx = cx;
+        this.#cy = cy;
         this.#color = color;
     }
+    cpos() {
+        return { cx:this.#cx, cy:this.#cy };
+    }
     is_at(cx, cy) {
-        return this.cx == cx && this.cy == cy;
+        return this.#cx == cx && this.#cy == cy;
+    }
+    is_item_at(item) {
+        return this.is_at(item.#cx, item.#cy);
     }
     draw(gfx, cellw, cellh, color = this.#color) {
-        const x = config.win_xmargin + cellw * this.cx;
-        const y = config.win_ymargin + cellh * this.cy;
+        const x = config.win_xmargin + cellw * this.#cx;
+        const y = config.win_ymargin + cellh * this.#cy;
         const xm = config.seg_xmargin;
         const ym = config.seg_ymargin;
         gfx.draw_rect(x + xm, y + ym, cellw - 2*xm, cellh - 2*ym, color);
@@ -82,8 +88,9 @@ class Seg extends CellItem {
             (dir == DIR_DOWN)  ? [ new Point(.5,.8),new Point(.2,.2),new Point(.8,.2) ] :
             null;
         if (pts != null) {
-            const x = config.win_xmargin + cellw * this.cx;
-            const y = config.win_ymargin + cellh * this.cy;
+            const cpos = this.cpos();
+            const x = config.win_xmargin + cellw * cpos.cx;
+            const y = config.win_ymargin + cellh * cpos.cy;
             gfx.draw_poly(pts, x, y, 0, Math.min(cellw, cellh), config.color_face, config.color_face);
         }
     }
@@ -98,7 +105,7 @@ class Food extends CellItem {
 
 // --------------------------------------------------------------------
 class Board {
-    #xdelta; #ydelta; #snake;
+    #xdelta; #ydelta; #snake; #food; #hilite_cx; #hilite_cy;
     constructor() {
         this.#xdelta = +1;
         this.#ydelta = 0;
@@ -116,27 +123,26 @@ class Board {
             cy = randu(config.hcells);
             if (!this.#intersects_snake(cx, cy)) break;
         }
-        this.food = new Food(cx, cy);
+        this.#food = new Food(cx, cy);
     }
     set_direction(dx, dy) {
         this.#xdelta = dx;
         this.#ydelta = dy;
     }
     update() {
-        const sx = this.#snake[0].cx;
-        const sy = this.#snake[0].cy;
-        const nx = sx + this.#xdelta;
-        const ny = sy + this.#ydelta;
+        const spos = this.#snake[0].cpos();
+        const nx = spos.cx + this.#xdelta;
+        const ny = spos.cy + this.#ydelta;
         let ret = 0;
         if (nx < 0 || nx >= config.wcells || ny < 0 || ny >= config.hcells) {
             ret = -1; // snake ran out of board; game over
-            this.#hilite(sx, sy);
+            this.#hilite(spos.cx, spos.cy);
         } else if (this.#intersects_snake(nx, ny)) {
             ret = -1; // snake ran into self; game over
             this.#hilite(nx, ny);
         } else {
             this.#snake.unshift(new Seg(nx, ny)); // grow new head
-            if (this.food == null || !this.#snake[0].is_at(this.food.cx, this.food.cy)) {
+            if (this.#food == null || !this.#snake[0].is_item_at(this.#food)) {
                 this.#snake.pop(); // remove tail
             } else {
                 // Found food: not popping the tail makes the snake grow.
@@ -147,8 +153,8 @@ class Board {
         return ret;
     }
     #hilite(cx, cy) {
-        this.hilite_cx = cx;
-        this.hilite_cy = cy;
+        this.#hilite_cx = cx;
+        this.#hilite_cy = cy;
     }
     #intersects_snake(cx, cy) {
         for (const seg of this.#snake) {
@@ -166,12 +172,12 @@ class Board {
     draw(gfx, cellw, cellh) {
         let is_head = true;
         for (const seg of this.#snake) {
-            const hilite = seg.is_at(this.hilite_cx, this.hilite_cy);
+            const hilite = seg.is_at(this.#hilite_cx, this.#hilite_cy);
             seg.draw(gfx, cellw, cellh, hilite, is_head ? this.#dir() : DIR_NULL);
             is_head = false;
         }
-        if (this.food != null) {
-            this.food.draw(gfx, cellw, cellh);
+        if (this.#food != null) {
+            this.#food.draw(gfx, cellw, cellh);
         }
     }
 };
