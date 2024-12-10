@@ -96,20 +96,14 @@ class Food extends CellItem {
 };
 
 // --------------------------------------------------------------------
-class Game {
-    constructor(gfx) {
-        this.gfx = gfx;
+class Board {
+    constructor() {
         this.xdelta = +1;
         this.ydelta = 0;
-        this.upint = config.upint;
-        this.last_update = 0;
-        this.score = 0;
-        this.playing = true;
-        this.paused = false;
-        this.hilite(-1, -1);
         const x = Math.floor(config.wcells/2);
         const y = Math.floor(config.hcells/2);
         this.snake = [ new Seg(x, y) ];
+        this.hilite(-1, -1);
         this.new_food();
     }
     new_food() {
@@ -122,54 +116,37 @@ class Game {
         }
         this.food = new Food(x, y);
     }
-    run() {
-        if (!this.playing) return;
-        if (!this.paused) this.update();
-        this.draw();
+    set_direction(dx, dy) {
+        this.xdelta = dx;
+        this.ydelta = dy;
     }
     update() {
-        if (this.last_update + this.upint > now()) return;
-        this.update_now();
-    }
-    update_now() {
         const sx = this.snake[0].x;
         const sy = this.snake[0].y;
         const nx = sx + this.xdelta;
         const ny = sy + this.ydelta;
+        let ret = 0;
         if (nx < 0 || nx >= config.wcells || ny < 0 || ny >= config.hcells) {
+            ret = -1; // snake ran out of board; game over
             this.hilite(sx, sy);
-            this.game_over();
         } else if (this.intersects_snake(nx, ny)) {
+            ret = -1; // snake ran into self; game over
             this.hilite(nx, ny);
-            this.game_over();
         } else {
             this.snake.unshift(new Seg(nx, ny)); // grow new head
             if (this.food != null && this.food.x == this.snake[0].x && this.food.y == this.snake[0].y) {
-                // Not removing the tail makes snake grow.
-                this.score++;
-                this.upint *= config.upint_mult;
+                // Not popping the tail makes the snake grow.
                 this.new_food();
+                ret = 1;
             } else {
                 this.snake.pop(); // remove tail
             }
         }
-        this.last_update = now();
+        return ret;
     }
     hilite(x, y) {
         this.hilite_x = x;
         this.hilite_y = y;
-    }
-    game_over() {
-        this.playing = false;
-        this.draw();
-    }
-    dims() {
-        const d = this.gfx.canvas_dims();
-        let cellw = Math.floor((d.w - 2*config.win_xmargin) / config.wcells);
-        let cellh = Math.floor((d.h - 2*config.win_ymargin) / config.hcells);
-        if (cellw < 2) cellw = 2;
-        if (cellh < 2) cellh = 2;
-        return { cellw:cellw, cellh:cellh };
     }
     intersects_snake(x, y) {
         for (const seg of this.snake) {
@@ -184,23 +161,65 @@ class Game {
             return (this.xdelta > 0) ? DIR_RIGHT : DIR_LEFT;
         }
     }
-    set_direction(dx, dy) {
-        this.xdelta = dx;
-        this.ydelta = dy;
-        this.update_now();
-    }
-    draw() {
-        const d = this.dims();
-        this.gfx.clear(config.color_bg);
+    draw(gfx, cellw, cellh) {
         let is_head = true;
         for (const seg of this.snake) {
             const hilite = (seg.x == this.hilite_x && seg.y == this.hilite_y);
-            seg.draw(this.gfx, d.cellw, d.cellh, hilite, is_head ? this.dir() : DIR_NULL);
+            seg.draw(gfx, cellw, cellh, hilite, is_head ? this.dir() : DIR_NULL);
             is_head = false;
         }
         if (this.food != null) {
-            this.food.draw(this.gfx, d.cellw, d.cellh);
+            this.food.draw(gfx, cellw, cellh);
         }
+    }
+};
+
+// --------------------------------------------------------------------
+class Game {
+    constructor(gfx) {
+        this.gfx = gfx;
+        this.upint = config.upint;
+        this.last_update = 0;
+        this.score = 0;
+        this.playing = true;
+        this.paused = false;
+        this.board = new Board();
+    }
+    run() {
+        if (!this.playing) return;
+        if (!this.paused) this.update();
+        this.draw();
+    }
+    update() {
+        if (this.last_update + this.upint > now()) return;
+        this.update_now();
+    }
+    update_now() {
+        const ret = this.board.update();
+        if (ret < 0) {
+            this.game_over();
+        } else if (ret > 0) {
+            this.score += ret;
+            this.upint *= config.upint_mult;
+        }
+        this.last_update = now();
+    }
+    game_over() {
+        this.playing = false;
+        this.draw();
+    }
+    dims() {
+        const d = this.gfx.canvas_dims();
+        let cellw = Math.floor((d.w - 2*config.win_xmargin) / config.wcells);
+        let cellh = Math.floor((d.h - 2*config.win_ymargin) / config.hcells);
+        if (cellw < 2) cellw = 2;
+        if (cellh < 2) cellh = 2;
+        return { cellw:cellw, cellh:cellh };
+    }
+    draw() {
+        this.gfx.clear(config.color_bg);
+        const d = this.dims();
+        this.board.draw(this.gfx, d.cellw, d.cellh);
         this.draw_margin();
         this.draw_score();
         if (!this.playing)
@@ -250,11 +269,17 @@ class Game {
             return;
         }
         if (this.paused) return;
+        let dx = 0;
+        let dy = 0;
         switch (key) {
-        case 'ArrowDown'  : this.set_direction(0,+1); break;
-        case 'ArrowUp'    : this.set_direction(0,-1); break;
-        case 'ArrowRight' : this.set_direction(+1,0); break;
-        case 'ArrowLeft'  : this.set_direction(-1,0); break;
+        case 'ArrowDown'  : dx =  0;  dy = +1;  break;
+        case 'ArrowUp'    : dx =  0;  dy = -1;  break;
+        case 'ArrowRight' : dx = +1;  dy =  0;  break;
+        case 'ArrowLeft'  : dx = -1;  dy =  0;  break;
+        }
+        if (dx != 0 || dy != 0) {
+            this.board.set_direction(dx, dy);
+            this.update_now();
         }
     }
 }; // class Game
@@ -262,8 +287,8 @@ class Game {
 // --------------------------------------------------------------------
 
 function run_game() {
-    if (_game != null) _game.run();
-    if (_game == null || _game.playing)
+    _game.run();
+    if (_game.playing)
         window.requestAnimationFrame(run_game);
 }
 
