@@ -51,6 +51,9 @@ class CellItem {
         this.y = y;
         this.#color = color;
     }
+    is_at(x, y) {
+        return this.x == x && this.y == y;
+    }
     draw(gfx, cellw, cellh, color = this.#color) {
         const x = config.win_xmargin + cellw * this.x;
         const y = config.win_ymargin + cellh * this.y;
@@ -90,9 +93,6 @@ class Seg extends CellItem {
 class Food extends CellItem {
     constructor(x, y) {
         super(x, y, config.color_food);
-    }
-    draw(gfx, cellw, cellh) {
-        super.draw(gfx, cellw, cellh);
     }
 };
 
@@ -136,10 +136,10 @@ class Board {
             this.#hilite(nx, ny);
         } else {
             this.#snake.unshift(new Seg(nx, ny)); // grow new head
-            if (this.food == null || this.food.x != this.#snake[0].x || this.food.y != this.#snake[0].y) {
+            if (this.food == null || !this.#snake[0].is_at(this.food.x, this.food.y)) {
                 this.#snake.pop(); // remove tail
             } else {
-                // Not popping the tail makes the snake grow.
+                // Found food: not popping the tail makes the snake grow.
                 ret = 1;
                 this.#new_food();
             }
@@ -152,7 +152,7 @@ class Board {
     }
     #intersects_snake(x, y) {
         for (const seg of this.#snake) {
-            if (seg.x == x && seg.y == y) return true;
+            if (seg.is_at(x, y)) return true;
         }
         return false;
     }
@@ -166,7 +166,7 @@ class Board {
     draw(gfx, cellw, cellh) {
         let is_head = true;
         for (const seg of this.#snake) {
-            const hilite = (seg.x == this.hilite_x && seg.y == this.hilite_y);
+            const hilite = seg.is_at(this.hilite_x, this.hilite_y);
             seg.draw(gfx, cellw, cellh, hilite, is_head ? this.#dir() : DIR_NULL);
             is_head = false;
         }
