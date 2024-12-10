@@ -70,6 +70,7 @@ class Seg extends CellItem {
         this.draw_head(gfx, cellw, cellh, dir);
     }
     draw_head(gfx, cellw, cellh, dir) {
+        // Draw directional triangle on the head.
         const pts = 
             (dir == DIR_RIGHT) ? [ new Point(.8,.5),new Point(.2,.2),new Point(.2,.8) ] :
             (dir == DIR_UP)    ? [ new Point(.5,.2),new Point(.2,.8),new Point(.8,.8) ] :
@@ -102,14 +103,13 @@ class Game {
         this.ydelta = 0;
         this.upint = config.upint;
         this.last_update = 0;
-        this.hilite_x = -1;
-        this.hilite_y = -1;
         this.score = 0;
         this.playing = true;
         this.paused = false;
+        this.hilite(-1, -1);
         const x = Math.floor(config.wcells/2);
         const y = Math.floor(config.hcells/2);
-        this.snake = [ new Seg(x+1, y), new Seg(x, y) ];
+        this.snake = [ new Seg(x, y) ];
         this.new_food();
     }
     new_food() {
@@ -132,25 +132,32 @@ class Game {
         this.update_now();
     }
     update_now() {
-        const x = this.snake[0].x + this.xdelta;
-        const y = this.snake[0].y + this.ydelta;
-        if (x < 0 || x >= config.wcells || y < 0 || y >= config.hcells) {
+        const sx = this.snake[0].x;
+        const sy = this.snake[0].y;
+        const nx = sx + this.xdelta;
+        const ny = sy + this.ydelta;
+        if (nx < 0 || nx >= config.wcells || ny < 0 || ny >= config.hcells) {
+            this.hilite(sx, sy);
             this.game_over();
-        } else if (this.intersects_snake(x, y)) {
-            this.hilite_x = x;
-            this.hilite_y = y;
+        } else if (this.intersects_snake(nx, ny)) {
+            this.hilite(nx, ny);
             this.game_over();
         } else {
-            this.snake.unshift(new Seg(x, y));
-            if (this.food != null && this.intersects_snake(this.food.x, this.food.y)) { // just check head
-                this.new_food();
+            this.snake.unshift(new Seg(nx, ny)); // grow new head
+            if (this.food != null && this.food.x == this.snake[0].x && this.food.y == this.snake[0].y) {
+                // Not removing the tail makes snake grow.
                 this.score++;
                 this.upint *= config.upint_mult;
+                this.new_food();
             } else {
-                this.snake.pop();
+                this.snake.pop(); // remove tail
             }
         }
         this.last_update = now();
+    }
+    hilite(x, y) {
+        this.hilite_x = x;
+        this.hilite_y = y;
     }
     game_over() {
         this.playing = false;
@@ -180,11 +187,11 @@ class Game {
     draw() {
         const d = this.dims();
         this.gfx.clear(config.color_bg);
-        let head = true;
+        let is_head = true;
         for (const seg of this.snake) {
             const hilite = (seg.x == this.hilite_x && seg.y == this.hilite_y);
-            seg.draw(this.gfx, d.cellw, d.cellh, hilite, head && this.dir());
-            head = false;
+            seg.draw(this.gfx, d.cellw, d.cellh, hilite, is_head ? this.dir() : DIR_NULL);
+            is_head = false;
         }
         if (this.food != null) {
             this.food.draw(this.gfx, d.cellw, d.cellh);
@@ -215,7 +222,7 @@ class Game {
         const d = this.gfx.canvas_dims();
         this.gfx.set_font_size(d.h * config.font_score);
         /// const m = this.gfx.measure_text(score);
-        this.gfx.draw_text(config.win_xmargin, config.win_ymargin, score, config.color_score);
+        this.gfx.draw_text(config.win_xmargin * 1.8, config.win_ymargin * 1.1, score, config.color_score);
     }
     draw_overlay(msg) {
         const d = this.gfx.canvas_dims();
