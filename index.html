@@ -36,7 +36,8 @@ var config = {
     color_bg               : "101010",
     color_face             : "000000",
     color_food             : "0070f0",
-    color_game_over        : "ff2020",
+    color_overlay_shadow   : "ffffff",
+    color_overlay_text     : "ff2020",
     color_margin           : "20d040",
     color_score            : "f0f0f0",
     color_snake            : "a0a010",
@@ -265,7 +266,10 @@ class Game {
         const d = this.#gfx.canvas_dims();
         this.#gfx.set_font_size(d.h * config.font_overlay);
         const m = this.#gfx.measure_text(msg);
-        this.#gfx.draw_text((d.w - m.width) / 2, (d.h - m.height) / 2, msg, config.color_game_over);
+        const x = (d.w - m.width) / 2;
+        const y = (d.h - m.height) / 2;
+        this.#gfx.draw_text(x+1, y+1, msg, config.color_overlay_shadow);
+        this.#gfx.draw_text(x, y, msg, config.color_overlay_text);
     }
     static _event_keydown(e) {
         if (_game != null) _game.#event_keystroke(e.key, true);
