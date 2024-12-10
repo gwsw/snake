@@ -184,6 +184,11 @@ class Game {
             return (this.xdelta > 0) ? DIR_RIGHT : DIR_LEFT;
         }
     }
+    set_direction(dx, dy) {
+        this.xdelta = dx;
+        this.ydelta = dy;
+        this.update_now();
+    }
     draw() {
         const d = this.dims();
         this.gfx.clear(config.color_bg);
@@ -236,25 +241,6 @@ class Game {
     static _event_keyup(e) {
         if (_game != null) _game.event_keystroke(e.key, false);
     }
-    set_direction(dir) {
-        const delta = Game.get_delta(dir);
-        this.xdelta = delta.x;
-        this.ydelta = delta.y;
-        this.update_now();
-    }
-    static get_delta(dir) {
-        if (dir == DIR_RIGHT) {
-            return { x:+1, y:0 };
-        } else if (dir == DIR_UP) {
-            return { x:0, y:-1 };
-        } else if (dir == DIR_LEFT) {
-            return { x:-1, y:0 };
-        } else if (dir == DIR_DOWN) {
-            return { x:0, y:+1 };
-        } else {
-            return { x:0, y:0 };
-        }
-    }
     event_keystroke(key, down) {
         if (!down) return;
         if (!this.playing) return;
@@ -264,16 +250,11 @@ class Game {
             return;
         }
         if (this.paused) return;
-
-        let dir = DIR_NULL;
         switch (key) {
-        case 'ArrowDown'  : dir = DIR_DOWN;  break;
-        case 'ArrowUp'    : dir = DIR_UP;    break;
-        case 'ArrowRight' : dir = DIR_RIGHT; break;
-        case 'ArrowLeft'  : dir = DIR_LEFT;  break;
-        }
-        if (dir != DIR_NULL) {
-            this.set_direction(dir);
+        case 'ArrowDown'  : this.set_direction(0,+1); break;
+        case 'ArrowUp'    : this.set_direction(0,-1); break;
+        case 'ArrowRight' : this.set_direction(+1,0); break;
+        case 'ArrowLeft'  : this.set_direction(-1,0); break;
         }
     }
 }; // class Game
