@@ -24,8 +24,8 @@ const DIR_DOWN  = 4;
 var config = {
     font_overlay           : .12,
     font_score             : .08,
-    upint                  : 1000, // update interval; ms
-    upint_mult             : .9,
+    upint                  : 800, // update interval; ms
+    upint_mult             : .93,
     wcells                 : 36,
     hcells                 : 20,
     seg_xmargin            : 1,
@@ -67,6 +67,9 @@ class Seg extends CellItem {
     draw(gfx, cellw, cellh, hilite, dir) {
         const color = hilite ? config.color_snake_hilite : config.color_snake;
         super.draw(gfx, cellw, cellh, color);
+        this.draw_head(gfx, cellw, cellh, dir);
+    }
+    draw_head(gfx, cellw, cellh, dir) {
         const pts = 
             (dir == DIR_RIGHT) ? [ new Point(.8,.5),new Point(.2,.2),new Point(.2,.8) ] :
             (dir == DIR_UP)    ? [ new Point(.5,.2),new Point(.2,.8),new Point(.8,.8) ] :
@@ -288,7 +291,8 @@ class Game {
 
 function run_game() {
     if (_game != null) _game.run();
-    window.requestAnimationFrame(run_game);
+    if (_game == null || _game.playing)
+        window.requestAnimationFrame(run_game);
 }
 
 function canvas_size(name, w, h) {
