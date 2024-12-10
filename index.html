@@ -45,12 +45,13 @@ var config = {
 
 // --------------------------------------------------------------------
 class CellItem {
+    #color;
     constructor(x, y, color) {
         this.x = x;
         this.y = y;
-        this.color = color;
+        this.#color = color;
     }
-    draw(gfx, cellw, cellh, color = this.color) {
+    draw(gfx, cellw, cellh, color = this.#color) {
         const x = config.win_xmargin + cellw * this.x;
         const y = config.win_ymargin + cellh * this.y;
         const xm = config.seg_xmargin;
@@ -67,9 +68,9 @@ class Seg extends CellItem {
     draw(gfx, cellw, cellh, hilite, dir) {
         const color = hilite ? config.color_snake_hilite : config.color_snake;
         super.draw(gfx, cellw, cellh, color);
-        this.draw_head(gfx, cellw, cellh, dir);
+        this.#draw_head(gfx, cellw, cellh, dir);
     }
-    draw_head(gfx, cellw, cellh, dir) {
+    #draw_head(gfx, cellw, cellh, dir) {
         // Draw directional triangle on the head.
         const pts = 
             (dir == DIR_RIGHT) ? [ new Point(.8,.5),new Point(.2,.2),new Point(.2,.8) ] :
@@ -97,75 +98,76 @@ class Food extends CellItem {
 
 // --------------------------------------------------------------------
 class Board {
+    #xdelta; #ydelta; #snake;
     constructor() {
-        this.xdelta = +1;
-        this.ydelta = 0;
+        this.#xdelta = +1;
+        this.#ydelta = 0;
         const x = Math.floor(config.wcells/2);
         const y = Math.floor(config.hcells/2);
-        this.snake = [ new Seg(x, y) ];
-        this.hilite(-1, -1);
-        this.new_food();
+        this.#snake = [ new Seg(x, y) ];
+        this.#hilite(-1, -1);
+        this.#new_food();
     }
-    new_food() {
+    #new_food() {
         let x;
         let y;
         for (;;) {
             x = randu(config.wcells);
             y = randu(config.hcells);
-            if (!this.intersects_snake(x, y)) break;
+            if (!this.#intersects_snake(x, y)) break;
         }
         this.food = new Food(x, y);
     }
     set_direction(dx, dy) {
-        this.xdelta = dx;
-        this.ydelta = dy;
+        this.#xdelta = dx;
+        this.#ydelta = dy;
     }
     update() {
-        const sx = this.snake[0].x;
-        const sy = this.snake[0].y;
-        const nx = sx + this.xdelta;
-        const ny = sy + this.ydelta;
+        const sx = this.#snake[0].x;
+        const sy = this.#snake[0].y;
+        const nx = sx + this.#xdelta;
+        const ny = sy + this.#ydelta;
         let ret = 0;
         if (nx < 0 || nx >= config.wcells || ny < 0 || ny >= config.hcells) {
             ret = -1; // snake ran out of board; game over
-            this.hilite(sx, sy);
-        } else if (this.intersects_snake(nx, ny)) {
+            this.#hilite(sx, sy);
+        } else if (this.#intersects_snake(nx, ny)) {
             ret = -1; // snake ran into self; game over
-            this.hilite(nx, ny);
+            this.#hilite(nx, ny);
         } else {
-            this.snake.unshift(new Seg(nx, ny)); // grow new head
-            if (this.food != null && this.food.x == this.snake[0].x && this.food.y == this.snake[0].y) {
-                // Not popping the tail makes the snake grow.
-                this.new_food();
-                ret = 1;
+            this.#snake.unshift(new Seg(nx, ny)); // grow new head
+            if (this.food == null || this.food.x != this.#snake[0].x || this.food.y != this.#snake[0].y) {
+                this.#snake.pop(); // remove tail
             } else {
-                this.snake.pop(); // remove tail
+                // Not popping the tail makes the snake grow.
+                ret = 1;
+                this.#new_food();
             }
         }
         return ret;
     }
-    hilite(x, y) {
+    #hilite(x, y) {
         this.hilite_x = x;
         this.hilite_y = y;
     }
-    intersects_snake(x, y) {
-        for (const seg of this.snake) {
+    #intersects_snake(x, y) {
+        for (const seg of this.#snake) {
             if (seg.x == x && seg.y == y) return true;
         }
         return false;
     }
-    dir() {
-        if (this.xdelta == 0) {
-            return (this.ydelta > 0) ? DIR_DOWN : DIR_UP;
+    #dir() {
+        if (this.#xdelta == 0) {
+            return (this.#ydelta > 0) ? DIR_DOWN : DIR_UP;
         } else {
-            return (this.xdelta > 0) ? DIR_RIGHT : DIR_LEFT;
+            return (this.#xdelta > 0) ? DIR_RIGHT : DIR_LEFT;
         }
     }
     draw(gfx, cellw, cellh) {
         let is_head = true;
-        for (const seg of this.snake) {
+        for (const seg of this.#snake) {
             const hilite = (seg.x == this.hilite_x && seg.y == this.hilite_y);
-            seg.draw(gfx, cellw, cellh, hilite, is_head ? this.dir() : DIR_NULL);
+            seg.draw(gfx, cellw, cellh, hilite, is_head ? this.#dir() : DIR_NULL);
             is_head = false;
         }
         if (this.food != null) {
@@ -176,40 +178,45 @@ class Board {
 
 // --------------------------------------------------------------------
 class Game {
+    #gfx; #upint; #last_update; #score; #playing; #paused; #board;
     constructor(gfx) {
-        this.gfx = gfx;
-        this.upint = config.upint;
-        this.last_update = 0;
-        this.score = 0;
-        this.playing = true;
-        this.paused = false;
-        this.board = new Board();
+        this.#gfx = gfx;
+        this.#upint = config.upint;
+        this.#last_update = 0;
+        this.#score = 0;
+        this.#playing = true;
+        this.#paused = false;
+        this.#board = new Board();
     }
     run() {
-        if (!this.playing) return;
-        if (!this.paused) this.update();
+        if (!this.#playing)
+            return;
+        if (!this.#paused)
+            this.update();
         this.draw();
+        if (this.#playing)
+            window.requestAnimationFrame(run_game);
     }
     update() {
-        if (this.last_update + this.upint > now()) return;
-        this.update_now();
+        if (this.#last_update + this.#upint > now()) return;
+        this.#update_now();
     }
-    update_now() {
-        const ret = this.board.update();
+    #update_now() {
+        const ret = this.#board.update();
         if (ret < 0) {
-            this.game_over();
+            this.#game_over();
         } else if (ret > 0) {
-            this.score += ret;
-            this.upint *= config.upint_mult;
+            this.#score += ret;
+            this.#upint *= config.upint_mult;
         }
-        this.last_update = now();
+        this.#last_update = now();
     }
-    game_over() {
-        this.playing = false;
+    #game_over() {
+        this.#playing = false;
         this.draw();
     }
-    dims() {
-        const d = this.gfx.canvas_dims();
+    #dims() {
+        const d = this.#gfx.canvas_dims();
         let cellw = Math.floor((d.w - 2*config.win_xmargin) / config.wcells);
         let cellh = Math.floor((d.h - 2*config.win_ymargin) / config.hcells);
         if (cellw < 2) cellw = 2;
@@ -217,58 +224,58 @@ class Game {
         return { cellw:cellw, cellh:cellh };
     }
     draw() {
-        this.gfx.clear(config.color_bg);
-        const d = this.dims();
-        this.board.draw(this.gfx, d.cellw, d.cellh);
-        this.draw_margin();
-        this.draw_score();
-        if (!this.playing)
-            this.draw_overlay("GAME OVER");
-        else if (this.paused)
-            this.draw_overlay("PAUSED");
+        this.#gfx.clear(config.color_bg);
+        const d = this.#dims();
+        this.#board.draw(this.#gfx, d.cellw, d.cellh);
+        this.#draw_margin();
+        this.#draw_score();
+        if (!this.#playing)
+            this.#draw_overlay("GAME OVER");
+        else if (this.#paused)
+            this.#draw_overlay("PAUSED");
     }
-    draw_margin() {
-        const canvas = this.gfx.canvas_dims();
+    #draw_margin() {
+        const canvas = this.#gfx.canvas_dims();
         const cw = canvas.w;
         const ch = canvas.h;
-        const d = this.dims();
+        const d = this.#dims();
         const lb = config.win_xmargin;
         const tb = config.win_ymargin;
         const rb = cw - lb - d.cellw * config.wcells;
         const bb = ch - tb - d.cellh * config.hcells;
-        this.gfx.draw_rect(0,      0,       cw-rb,  tb,    config.color_margin);
-        this.gfx.draw_rect(cw-rb,  0,       rb,     ch-bb, config.color_margin);
-        this.gfx.draw_rect(lb,     ch-bb,   cw-lb,  bb,    config.color_margin);
-        this.gfx.draw_rect(0,      tb,      lb,     ch-tb, config.color_margin);
+        this.#gfx.draw_rect(0,      0,       cw-rb,  tb,    config.color_margin);
+        this.#gfx.draw_rect(cw-rb,  0,       rb,     ch-bb, config.color_margin);
+        this.#gfx.draw_rect(lb,     ch-bb,   cw-lb,  bb,    config.color_margin);
+        this.#gfx.draw_rect(0,      tb,      lb,     ch-tb, config.color_margin);
     }
-    draw_score() {
-        const score = this.score.toString();
-        const d = this.gfx.canvas_dims();
-        this.gfx.set_font_size(d.h * config.font_score);
-        /// const m = this.gfx.measure_text(score);
-        this.gfx.draw_text(config.win_xmargin * 1.8, config.win_ymargin * 1.1, score, config.color_score);
+    #draw_score() {
+        const score_str = this.#score.toString();
+        const d = this.#gfx.canvas_dims();
+        this.#gfx.set_font_size(d.h * config.font_score);
+        /// const m = this.#gfx.measure_text(score_str);
+        this.#gfx.draw_text(config.win_xmargin * 1.8, config.win_ymargin * 1.1, score_str, config.color_score);
     }
-    draw_overlay(msg) {
-        const d = this.gfx.canvas_dims();
-        this.gfx.set_font_size(d.h * config.font_overlay);
-        const m = this.gfx.measure_text(msg);
-        this.gfx.draw_text((d.w - m.width) / 2, (d.h - m.height) / 2, msg, config.color_game_over);
+    #draw_overlay(msg) {
+        const d = this.#gfx.canvas_dims();
+        this.#gfx.set_font_size(d.h * config.font_overlay);
+        const m = this.#gfx.measure_text(msg);
+        this.#gfx.draw_text((d.w - m.width) / 2, (d.h - m.height) / 2, msg, config.color_game_over);
     }
     static _event_keydown(e) {
-        if (_game != null) _game.event_keystroke(e.key, true);
+        if (_game != null) _game.#event_keystroke(e.key, true);
     }
     static _event_keyup(e) {
-        if (_game != null) _game.event_keystroke(e.key, false);
+        if (_game != null) _game.#event_keystroke(e.key, false);
     }
-    event_keystroke(key, down) {
+    #event_keystroke(key, down) {
         if (!down) return;
-        if (!this.playing) return;
+        if (!this.#playing) return;
         if (key == 'p' || key == 'P') {
-            this.paused = !this.paused;
+            this.#paused = !this.#paused;
             this.draw();
             return;
         }
-        if (this.paused) return;
+        if (this.#paused) return;
         let dx = 0;
         let dy = 0;
         switch (key) {
@@ -278,8 +285,8 @@ class Game {
         case 'ArrowLeft'  : dx = -1;  dy =  0;  break;
         }
         if (dx != 0 || dy != 0) {
-            this.board.set_direction(dx, dy);
-            this.update_now();
+            this.#board.set_direction(dx, dy);
+            this.#update_now();
         }
     }
 }; // class Game
@@ -288,8 +295,6 @@ class Game {
 
 function run_game() {
     _game.run();
-    if (_game.playing)
-        window.requestAnimationFrame(run_game);
 }
 
 function canvas_size(name, w, h) {
