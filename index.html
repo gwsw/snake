@@ -46,17 +46,17 @@ var config = {
 // --------------------------------------------------------------------
 class CellItem {
     #color;
-    constructor(x, y, color) {
-        this.x = x;
-        this.y = y;
+    constructor(cx, cy, color) {
+        this.cx = cx;
+        this.cy = cy;
         this.#color = color;
     }
-    is_at(x, y) {
-        return this.x == x && this.y == y;
+    is_at(cx, cy) {
+        return this.cx == cx && this.cy == cy;
     }
     draw(gfx, cellw, cellh, color = this.#color) {
-        const x = config.win_xmargin + cellw * this.x;
-        const y = config.win_ymargin + cellh * this.y;
+        const x = config.win_xmargin + cellw * this.cx;
+        const y = config.win_ymargin + cellh * this.cy;
         const xm = config.seg_xmargin;
         const ym = config.seg_ymargin;
         gfx.draw_rect(x + xm, y + ym, cellw - 2*xm, cellh - 2*ym, color);
@@ -65,8 +65,8 @@ class CellItem {
 
 // --------------------------------------------------------------------
 class Seg extends CellItem {
-    constructor(x, y) {
-        super(x, y, config.color_snake);
+    constructor(cx, cy) {
+        super(cx, cy, config.color_snake);
     }
     draw(gfx, cellw, cellh, hilite, dir) {
         const color = hilite ? config.color_snake_hilite : config.color_snake;
@@ -82,8 +82,8 @@ class Seg extends CellItem {
             (dir == DIR_DOWN)  ? [ new Point(.5,.8),new Point(.2,.2),new Point(.8,.2) ] :
             null;
         if (pts != null) {
-            const x = config.win_xmargin + cellw * this.x;
-            const y = config.win_ymargin + cellh * this.y;
+            const x = config.win_xmargin + cellw * this.cx;
+            const y = config.win_ymargin + cellh * this.cy;
             gfx.draw_poly(pts, x, y, 0, Math.min(cellw, cellh), config.color_face, config.color_face);
         }
     }
@@ -91,8 +91,8 @@ class Seg extends CellItem {
 
 // --------------------------------------------------------------------
 class Food extends CellItem {
-    constructor(x, y) {
-        super(x, y, config.color_food);
+    constructor(cx, cy) {
+        super(cx, cy, config.color_food);
     }
 };
 
@@ -102,29 +102,29 @@ class Board {
     constructor() {
         this.#xdelta = +1;
         this.#ydelta = 0;
-        const x = Math.floor(config.wcells/2);
-        const y = Math.floor(config.hcells/2);
-        this.#snake = [ new Seg(x, y) ];
+        const cx = Math.floor(config.wcells/2);
+        const cy = Math.floor(config.hcells/2);
+        this.#snake = [ new Seg(cx, cy) ];
         this.#hilite(-1, -1);
         this.#new_food();
     }
     #new_food() {
-        let x;
-        let y;
+        let cx;
+        let cy;
         for (;;) {
-            x = randu(config.wcells);
-            y = randu(config.hcells);
-            if (!this.#intersects_snake(x, y)) break;
+            cx = randu(config.wcells);
+            cy = randu(config.hcells);
+            if (!this.#intersects_snake(cx, cy)) break;
         }
-        this.food = new Food(x, y);
+        this.food = new Food(cx, cy);
     }
     set_direction(dx, dy) {
         this.#xdelta = dx;
         this.#ydelta = dy;
     }
     update() {
-        const sx = this.#snake[0].x;
-        const sy = this.#snake[0].y;
+        const sx = this.#snake[0].cx;
+        const sy = this.#snake[0].cy;
         const nx = sx + this.#xdelta;
         const ny = sy + this.#ydelta;
         let ret = 0;
@@ -136,7 +136,7 @@ class Board {
             this.#hilite(nx, ny);
         } else {
             this.#snake.unshift(new Seg(nx, ny)); // grow new head
-            if (this.food == null || !this.#snake[0].is_at(this.food.x, this.food.y)) {
+            if (this.food == null || !this.#snake[0].is_at(this.food.cx, this.food.cy)) {
                 this.#snake.pop(); // remove tail
             } else {
                 // Found food: not popping the tail makes the snake grow.
@@ -146,13 +146,13 @@ class Board {
         }
         return ret;
     }
-    #hilite(x, y) {
-        this.hilite_x = x;
-        this.hilite_y = y;
+    #hilite(cx, cy) {
+        this.hilite_x = cx;
+        this.hilite_y = cy;
     }
-    #intersects_snake(x, y) {
+    #intersects_snake(cx, cy) {
         for (const seg of this.#snake) {
-            if (seg.is_at(x, y)) return true;
+            if (seg.is_at(cx, cy)) return true;
         }
         return false;
     }
