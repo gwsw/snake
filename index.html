@@ -19,15 +19,17 @@ var config = {
     upint                  : 1000, // update interval; ms
     wcells                 : 36,
     hcells                 : 20,
-    seg_xmargin            : 2,
-    seg_ymargin            : 2,
+    seg_xmargin            : 1,
+    seg_ymargin            : 1,
     win_xmargin            : 16,
     win_ymargin            : 16,
 
     color_bg               : "101010",
     color_food             : "0070f0",
     color_game_over        : "ff2020",
+    color_margin           : "c05000",
     color_snake            : "a0a010",
+    color_snake_hilite     : "ff0010",
 };
 
 // --------------------------------------------------------------------
@@ -37,12 +39,12 @@ class CellItem {
         this.y = y;
         this.color = color;
     }
-    draw(gfx, cellw, cellh) {
+    draw(gfx, cellw, cellh, color = this.color) {
         const x = config.win_xmargin + cellw * this.x;
         const y = config.win_ymargin + cellh * this.y;
         const xm = config.seg_xmargin;
         const ym = config.seg_ymargin;
-        gfx.draw_rect(x + xm, y + ym, cellw - 2*xm, cellh - 2*ym, this.color);
+        gfx.draw_rect(x + xm, y + ym, cellw - 2*xm, cellh - 2*ym, color);
     }
 };
 
@@ -50,6 +52,10 @@ class CellItem {
 class Seg extends CellItem {
     constructor(x, y) {
         super(x, y, config.color_snake);
+    }
+    draw(gfx, cellw, cellh, hilite) {
+        const color = hilite ? config.color_snake_hilite : config.color_snake;
+        super.draw(gfx, cellw, cellh, color);
     }
 };
 
@@ -68,13 +74,24 @@ class Game {
         this.ydelta = 0;
         this.upint = config.upint;
         this.last_update = 0;
-        this.food = null;
+        this.hilite_x = -1;
+        this.hilite_y = -1;
         this.playing = true;
         this.paused = false;
-        this.snake = [ new Seg(Math.floor(config.wcells/2), Math.floor(config.hcells/2)) ];
-        this.resize();
+        const x = Math.floor(config.wcells/2);
+        const y = Math.floor(config.hcells/2);
+        this.snake = [ new Seg(x+1, y), new Seg(x, y) ];
+        this.new_food();
     }
-    resize() {
+    new_food() {
+        let x;
+        let y;
+        for (;;) {
+            x = randu(config.wcells);
+            y = randu(config.hcells);
+            if (!this.intersects_snake(x, y)) break;
+        }
+        this.food = new Food(x, y);
     }
     run() {
         if (!this.playing) return;
@@ -88,22 +105,30 @@ class Game {
     update_now() {
         const x = this.snake[0].x + this.xdelta;
         const y = this.snake[0].y + this.ydelta;
-        if (x < 0 || x >= config.xcells || y < 0 || y >= config.ycells) {
-            this.die();
+        if (x < 0 || x >= config.wcells || y < 0 || y >= config.hcells) {
+            this.game_over();
+        } else if (this.intersects_snake(x, y)) {
+            this.hilite_x = x;
+            this.hilite_y = y;
+            this.game_over();
         } else {
-            this.snake.push(new Seg(x, y));
-            this.snake.shift();
+            this.snake.unshift(new Seg(x, y));
+            if (this.food != null && this.intersects_snake(this.food.x, this.food.y)) { // just check head
+                this.new_food();
+            } else {
+                this.snake.pop();
+            }
         }
         this.last_update = now();
     }
-    die() {
+    game_over() {
         this.playing = false;
         this.draw();
     }
     dims() {
         const d = this.gfx.canvas_dims();
-        let cellw = Math.floor(d.w / config.wcells);
-        let cellh = Math.floor(d.h / config.hcells);
+        let cellw = Math.floor((d.w - 2*config.win_xmargin) / config.wcells);
+        let cellh = Math.floor((d.h - 2*config.win_ymargin) / config.hcells);
         if (cellw < 2) cellw = 2;
         if (cellh < 2) cellh = 2;
         return { cellw:cellw, cellh:cellh };
@@ -112,21 +137,42 @@ class Game {
         const d = this.dims();
         this.gfx.clear(config.color_bg);
         for (const seg of this.snake) {
-            seg.draw(this.gfx, d.cellw, d.cellh);
+            const hilite = (seg.x == this.hilite_x && seg.y == this.hilite_y);
+            seg.draw(this.gfx, d.cellw, d.cellh, hilite);
         }
         if (this.food != null) {
             this.food.draw(this.gfx, d.cellw, d.cellh);
         }
+        this.draw_margin();
         if (!this.playing)
             this.draw_overlay("GAME OVER");
         else if (this.paused)
             this.draw_overlay("PAUSED");
     }
+    draw_margin() {
+        const canvas = this.gfx.canvas_dims();
+        const cw = canvas.w;
+        const ch = canvas.h;
+        const d = this.dims();
+        const lb = config.win_xmargin;
+        const tb = config.win_ymargin;
+        const rb = cw - d.cellw * config.wcells;
+        const bb = ch - d.cellh * config.hcells;
+        this.gfx.draw_rect(0,      0,       cw-rb,  tb,    config.color_margin);
+        this.gfx.draw_rect(cw-rb,  0,       rb,     ch-bb, config.color_margin);
+        this.gfx.draw_rect(lb,     ch-bb,   cw-lb,  bb,    config.color_margin);
+        this.gfx.draw_rect(0,      tb,      lb,     ch-tb, config.color_margin);
+    }
+    intersects_snake(x, y) {
+        for(const seg of this.snake) {
+            if (seg.x == x && seg.y == y) return true;
+        }
+        return false;
+    }
     draw_overlay(msg) {
         const d = this.gfx.canvas_dims();
         this.gfx.set_font_size(d.h * .12);
         const m = this.gfx.measure_text(msg);
-        ///this.gfx.draw_text((d.w - m.width) / 2, (d.h - m.height) / 2, msg, config.color_game_over);
         this.gfx.draw_text((d.w - m.width) / 2, (d.h - m.height) / 2, msg, config.color_game_over);
     }
     static _event_keydown(e) {
