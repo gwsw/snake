@@ -24,12 +24,12 @@ const DIR_DOWN  = 4;
 var config = {
     font_overlay           : .12,
     font_score             : .08,
-    upint                  : 800, // update interval; ms
-    upint_mult             : .93,
-    wcells                 : 36,
     hcells                 : 20,
+    wcells                 : 36,
     seg_xmargin            : 1,
     seg_ymargin            : 1,
+    upint                  : 800, // update interval; ms
+    upint_mult             : .93,
     win_xmargin            : 16,
     win_ymargin            : 16,
 
@@ -147,8 +147,8 @@ class Board {
         return ret;
     }
     #hilite(cx, cy) {
-        this.hilite_x = cx;
-        this.hilite_y = cy;
+        this.hilite_cx = cx;
+        this.hilite_cy = cy;
     }
     #intersects_snake(cx, cy) {
         for (const seg of this.#snake) {
@@ -166,7 +166,7 @@ class Board {
     draw(gfx, cellw, cellh) {
         let is_head = true;
         for (const seg of this.#snake) {
-            const hilite = seg.is_at(this.hilite_x, this.hilite_y);
+            const hilite = seg.is_at(this.hilite_cx, this.hilite_cy);
             seg.draw(gfx, cellw, cellh, hilite, is_head ? this.#dir() : DIR_NULL);
             is_head = false;
         }
